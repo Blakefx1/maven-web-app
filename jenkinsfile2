@@ -1,0 +1,29 @@
+node {
+  def mavenHome = tool name: 'maven3.8.2'
+  stage ('Clone') {
+    git credentialsId: '20b32ed1-072f-449f-b604-612cbffa35c6', url: 'https://github.com/Blakefx1/maven-web-app.git'
+  }
+  stage ('MavenBuild') {
+    sh "${mavenHome}/bin/mvn clean package"
+  }
+  stage ('CodeQuality') {
+    sh "${mavenHome}/bin/mvn sonar:sonar"
+  }
+  stage ('UpLoadArtifact') {
+    sh "${mavenHome}/bin/mvn deploy"
+  }
+  stage ('DeploytoUAT') {
+    deploy adapters: [tomcat9(credentialsId: 'Tomcat', path: '', url: 'http://172.31.91.6:8080/')], contextPath: null, war: 'target/*war'
+  }
+  stage ('EmailNotification') {
+    emailext body: 'Building this job for Blake Enterprise', subject: 'Build in Progress', to: 'developer'
+  }
+  stage ('ManualApproval') {
+    timeout(time:8, unit: 'HOURS') {
+            input message: 'please verify and aprrove'
+  } 
+  stage ('DeploytoProduction') {
+    deploy adapters: [tomcat9(credentialsId: 'Tomcat', path: '', url: 'http://172.31.91.6:8080/')], contextPath: null, war: 'target/*war'
+  }
+}
+}
